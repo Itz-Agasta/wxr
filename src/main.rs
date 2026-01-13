@@ -4,9 +4,11 @@
 // wxr --> will print! the whole weather info (temp, aql etc etc)
 //
 // wxr -temp,aqi --> will print only the flags.
+mod config;
 
-use configstore::{AppUI, Configstore};
+use crate::config::set_user_config;
 use dotenvy::dotenv; // for now im using .env for storing the api key later it will be done by .wxr config file
+
 use serde::{Deserialize, Serialize};
 use std::env;
 
@@ -18,7 +20,7 @@ struct Coordinates {
 #[derive(Deserialize, Serialize, Debug, Default)]
 struct Config {
     api_key: String,
-    city: String,
+    city: Option<String>,
     lat: Option<f64>,
     lon: Option<f64>,
 }
@@ -40,21 +42,6 @@ fn fetch_user_coordinates() -> Result<Coordinates, Box<dyn std::error::Error>> {
     Ok(res)
 }
 
-// Make a fn that  will store these lat, lon in users temp/.wxr folder
-fn store_user_config() -> Result<(), Box<dyn std::error::Error>> {
-    let config_store = Configstore::new("wxr", AppUI::CommandLine).unwrap();
-    let value = Config {
-        api_key: "zyss".to_string(),
-        city: "kolkata".to_string(),
-        lat: None,
-        lon: None,
-    };
-    config_store.set("config", value)?;
-    
-    Ok(()) // FIXME:  Path is bad : /home/agasta/.config/configstore-rs/wxr i dont wnat this configstore-rs....
-}
-
-
 // fetch user's weather info using their lat, lon
 fn fetch_info(api_key: &str, lat: f64, lon: f64) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!(
@@ -67,31 +54,28 @@ fn fetch_info(api_key: &str, lat: f64, lon: f64) -> Result<String, Box<dyn std::
     Ok(res) // TODO: use structs to deserilize this res.
 }
 
-// fn to get users info for making the config file in his dir.
-// Res how aws-cli stores this info in user's system.
-
 // main fun that will take flags
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Hello, Agasta!");
 
     // Temp code
-    dotenv().ok();
-    let api_key = env::var("API_KEY")?;
-    let city = "Kolkata";
+    // dotenv().ok();
+    // let api_key = env::var("API_KEY")?;
+    // let city = "Kolkata";
 
-    let location = fetch_coordinates(city, &api_key)?;
+    // let location = fetch_coordinates(city, &api_key)?;
 
-    println!("{:#?}", location);
+    // println!("{:#?}", location);
 
-    println!("\n");
+    // println!("\n");
 
-    println!("{:#?}", fetch_user_coordinates()?);
+    // println!("{:#?}", fetch_user_coordinates()?);
 
-    let result = fetch_info(&api_key, location.lat, location.lon)?;
+    // let result = fetch_info(&api_key, location.lat, location.lon)?;
 
-    println!("{}", result);
-    
-    store_user_config()?;
+    // println!("{}", result);
+
+    set_user_config()?;
 
     Ok(())
 }
