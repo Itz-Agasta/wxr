@@ -5,14 +5,22 @@
 //
 // wxr -temp,aqi --> will print only the flags.
 
+use configstore::{AppUI, Configstore};
 use dotenvy::dotenv; // for now im using .env for storing the api key later it will be done by .wxr config file
-use serde::{Deserialize};
+use serde::{Deserialize, Serialize};
 use std::env;
 
 #[derive(Deserialize, Debug)]
 struct Coordinates {
     lat: f64,
     lon: f64,
+}
+#[derive(Deserialize, Serialize, Debug, Default)]
+struct Config {
+    api_key: String,
+    city: String,
+    lat: Option<f64>,
+    lon: Option<f64>,
 }
 
 // fetch user's lat, lon using their city name
@@ -25,7 +33,27 @@ fn fetch_coordinates(city: &str, api_key: &str) -> Result<Coordinates, Box<dyn s
     Ok(Coordinates { ..res[0] }) // API returns a array of results from which we are taking only the 1st one
 }
 
+// fetch user's current lat, lon dynamically
+fn fetch_user_coordinates() -> Result<Coordinates, Box<dyn std::error::Error>> {
+    const URL: &str = "http://ip-api.com/json?fields=lat,lon";
+    let res: Coordinates = reqwest::blocking::get(URL)?.json()?;
+    Ok(res)
+}
+
 // Make a fn that  will store these lat, lon in users temp/.wxr folder
+fn store_user_config() -> Result<(), Box<dyn std::error::Error>> {
+    let config_store = Configstore::new("wxr", AppUI::CommandLine).unwrap();
+    let value = Config {
+        api_key: "zyss".to_string(),
+        city: "kolkata".to_string(),
+        lat: None,
+        lon: None,
+    };
+    config_store.set("config", value)?;
+    
+    Ok(()) // FIXME:  Path is bad : /home/agasta/.config/configstore-rs/wxr i dont wnat this configstore-rs....
+}
+
 
 // fetch user's weather info using their lat, lon
 fn fetch_info(api_key: &str, lat: f64, lon: f64) -> Result<String, Box<dyn std::error::Error>> {
@@ -49,8 +77,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Temp code
     dotenv().ok();
     let api_key = env::var("API_KEY")?;
-    // let lat = 40.7128;
-    // let lon = 74.0060;
     let city = "Kolkata";
 
     let location = fetch_coordinates(city, &api_key)?;
@@ -59,9 +85,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n");
 
+    println!("{:#?}", fetch_user_coordinates()?);
+
     let result = fetch_info(&api_key, location.lat, location.lon)?;
 
     println!("{}", result);
+    
+    store_user_config()?;
 
     Ok(())
 }
