@@ -1,6 +1,18 @@
-use crate::{Config, fetch_coordinates, fetch_user_coordinates};
 use prompted::input;
+use serde::{Deserialize, Serialize};
 
+#[derive(Deserialize, Debug)]
+pub struct Coordinates {
+    pub lat: f64,
+    pub lon: f64,
+}
+#[derive(Deserialize, Serialize, Default)]
+pub struct Config {
+    pub api_key: String,
+    pub city: Option<String>,
+    pub lat: f64,
+    pub lon: f64,
+}
 // Make a fn that  will store these lat, lon in users ~/.config/wxr folder
 pub fn set_user_config() -> Result<(), Box<dyn std::error::Error>> {
     let mut cfg: Config = confy::load("wxr", "wxr_config")?;
@@ -27,8 +39,8 @@ pub fn set_user_config() -> Result<(), Box<dyn std::error::Error>> {
         "1" => match fetch_user_coordinates() {
             Ok(coord) => {
                 println!("Location detected successfully!!");
-                cfg.lat = Some(coord.lat);
-                cfg.lon = Some(coord.lon);
+                cfg.lat = coord.lat;
+                cfg.lon = coord.lon;
             }
             Err(e) => {
                 eprintln!("Failed to auto-detect location: {e}");
@@ -44,9 +56,9 @@ pub fn set_user_config() -> Result<(), Box<dyn std::error::Error>> {
                 match fetch_coordinates(city.trim(), &cfg.api_key) {
                     Ok(coord) => {
                         println!("City found!");
-                        cfg.city = Some(city.trim().to_string());
-                        cfg.lat = Some(coord.lat);
-                        cfg.lon = Some(coord.lon);
+                        cfg.city = Some(city);
+                        cfg.lat = coord.lat;
+                        cfg.lon = coord.lon;
                     }
                     Err(e) => {
                         eprintln!("Failed to find city: {e}");
@@ -66,9 +78,9 @@ pub fn set_user_config() -> Result<(), Box<dyn std::error::Error>> {
             match fetch_coordinates(city.trim(), &cfg.api_key) {
                 Ok(coord) => {
                     println!("City found!");
-                    cfg.city = Some(city.trim().to_string());
-                    cfg.lat = Some(coord.lat);
-                    cfg.lon = Some(coord.lon);
+                    cfg.city = Some(city);
+                    cfg.lat = coord.lat;
+                    cfg.lon = coord.lon;
                 }
                 Err(e) => {
                     eprintln!("Failed to find city: {e}");
@@ -89,7 +101,7 @@ pub fn set_user_config() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Validate coordinates were set
-    if cfg.lat.is_none() || cfg.lon.is_none() {
+    if cfg.lat==0.0 || cfg.lon==0.0 {
         return Err("Failed to set location coordinates".into());
     }
 
@@ -98,4 +110,21 @@ pub fn set_user_config() -> Result<(), Box<dyn std::error::Error>> {
     println!("You can now run: wxr\n");
 
     Ok(())
+}
+
+// fetch user's lat, lon using their city name
+fn fetch_coordinates(city: &str, api_key: &str) -> Result<Coordinates, Box<dyn std::error::Error>> {
+    let url = format!(
+        "http://api.openweathermap.org/geo/1.0/direct?q={}&appid={}",
+        city, api_key
+    );
+    let res: Vec<Coordinates> = reqwest::blocking::get(url)?.json()?;
+    Ok(Coordinates { ..res[0] }) // API returns a array of results from which we are taking only the 1st one
+}
+
+// fetch user's current lat, lon dynamically
+fn fetch_user_coordinates() -> Result<Coordinates, Box<dyn std::error::Error>> {
+    const URL: &str = "http://ip-api.com/json?fields=lat,lon";
+    let res: Coordinates = reqwest::blocking::get(URL)?.json()?;
+    Ok(res)
 }
