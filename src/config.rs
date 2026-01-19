@@ -101,7 +101,7 @@ pub fn set_user_config() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Validate coordinates were set
-    if cfg.lat==0.0 || cfg.lon==0.0 {
+    if cfg.lat == 0.0 || cfg.lon == 0.0 {
         return Err("Failed to set location coordinates".into());
     }
 
